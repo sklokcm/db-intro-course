@@ -7,13 +7,19 @@ create table if not exists person(
     created_at timestamp not null default current_timestamp,
     constraint wallet_balance_positive check (wallet_balance >=0)
 );
+
 create table if not exists publisher(
     publisher_id uuid primary key default gen_random_uuid(),
     publisher_name varchar(50) unique not null,
     website varchar(255),
     support_email varchar(100) not null
 );
-create type app_type as enum('game', 'dlc', 'soundtrack');
+
+DO $$ BEGIN
+    create type app_type as enum ('game', 'dlc', 'soundtrack');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 create table if not exists app(
     app_id uuid primary key default gen_random_uuid(),
     publisher_id uuid not null references publisher(publisher_id),
@@ -25,11 +31,13 @@ create table if not exists app(
     release_date date not null,
     constraint game_price_positive check(price>=0)
 );
+
 create table if not exists category(
     category_id uuid primary key default gen_random_uuid(),
     category_name varchar(50) not null unique,
     description text
 );
+
 create table if not exists app_category(
     category_id uuid not null references category(category_id) on delete cascade,
     app_id uuid not null references app(app_id) on delete cascade,
@@ -43,13 +51,18 @@ create table if not exists wishlist (
     primary key (user_id, app_id)
 );
 
+DO $$ BEGIN
+    create type payment_method as enum ('credit card', 'google pay', 'apple pay', 'paypal', 'digital wallet');
+EXCEPTION
+    WHEN duplicate_object THEN null;
+END $$;
 create table if not exists "order" (
     order_id uuid primary key default gen_random_uuid(),
     user_id uuid not null references person(user_id),
     receiver_id uuid references person(user_id),
     order_date timestamp not null default current_timestamp,
     total_amount decimal(10, 2) not null,
-    payment_method varchar(50) not null,
+    payment_method payment_method not null,
     status varchar(30) not null default 'completed',
     constraint order_amount_positive check (total_amount >= 0)
 );
@@ -79,5 +92,6 @@ create table if not exists review (
     playtime_at_review int not null default 0,
     content text,
     created_at timestamp not null default current_timestamp,
-    constraint review_playtime_non_negative check (playtime_at_review >= 0)
+    constraint review_playtime_non_negative check (playtime_at_review >= 0),
+    constraint unique_user_review unique(user_id, app_id)
 );
